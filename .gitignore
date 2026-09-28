@@ -1,0 +1,29 @@
+# Whitelist: only the plugin, its build/test/release scripts and the update tool are published.
+# Everything else in this folder (research material, game files, logs, downloads, experiments) stays local.
+/*
+!/.gitignore
+!/.gitmodules
+!/README.md
+!/LICENSE
+!/THIRD_PARTY_NOTICES.md
+!/build.bat
+!/install.bat
+!/package.bat
+!/src/
+!/include/
+!/tests/
+!/tools/
+!/packaging/
+!/third_party/
+
+# inside whitelisted folders
+/third_party/scs_sdk/examples/
+/tools/known_good.json
+__pycache__/
+*.log
+*.obj
+*.exe
+*.dll
+*.lib
+*.exp
+*.bak_*
