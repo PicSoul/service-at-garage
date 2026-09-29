@@ -47,8 +47,8 @@ Settings are read when the game starts.
   restore_sleep_sec=10 seconds until the sleep prompt comes back if you
                        don't use the service screen
   icon=1               1 = show the floating service icon in the bay
-  icon_offset_away=4   metres to move the icon away from the
-                       manage-garage icon
+  icon_distance=10.5   metres from the manage-garage icon toward the
+                       bay door
   icon_offset_side=0   metres to move the icon sideways (negative =
                        other side)
   log=0                0 = no log file, 1 = normal, 2 = verbose

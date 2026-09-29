@@ -1,6 +1,7 @@
 #include "bay.h"
 
 #include "common.h"
+#include "icon.h"
 #include "signatures.h"
 #include "world.h"
 
@@ -73,6 +74,7 @@ void __fastcall HookStartActivation(void* self, int type, void* data) {
         OrigStartActivation(self, type, data);
         return;
     }
+    if (type == kActSleep || type == kActManageGarage) IconLogGeometry(type == kActManageGarage ? data : nullptr, type == kActSleep ? "sleep prompt" : "manage-garage prompt");
     // Only replace the sleep prompt on a fresh bay entry, not while still parked after service.
     if (g_cfg.enabled && g_state == BayState::Idle && type == kActSleep && data == nullptr) {
         Log("sleep prompt requested (truck %.1f %.1f %.1f)", g_truckX, g_truckY, g_truckZ);

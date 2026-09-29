@@ -9,6 +9,7 @@ namespace sag {
 // Fixed game constants (stable across versions; not worth a signature each).
 const int kActService = 1;  // hud activation type: service
 const int kActSleep = 3;    // hud activation type: parking / sleep (item is null)
+const int kActManageGarage = 9;  // hud activation type: manage garage (item is the garage item)
 const uint64_t kTokenHudActivate = 0x344dc5bd6c3df4ecull;  // trigger command "hud_activate"
 const uint32_t kGarageOwned = 0x2, kGarageTiny = 0x4, kGarageLarge = 0x1;  // garage_u status bits
 
@@ -17,6 +18,7 @@ extern uint64_t g_frame;
 // ---- truck position (telemetry channel)
 extern bool g_haveTruckPos;
 extern double g_truckX, g_truckY, g_truckZ;
+extern double g_truckHeading;  // SDK heading: 0..1 of a full turn
 SCSAPI_VOID OnTruckPlacement(const scs_string_t, const scs_u32_t, const scs_value_t* const value, const scs_context_t);
 
 // ---- garages near the player (fed by the garage item update hook)

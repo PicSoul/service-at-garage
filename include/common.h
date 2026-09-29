@@ -14,7 +14,7 @@ struct Config {
     float radius = 50.0f;         // max truck distance to the garage item when the bay prompt appears, metres
     int restoreSleepSec = 10;     // give the sleep prompt back if service is not used
     int icon = 1;                 // show the floating service icon in the bay
-    float iconOffsetAway = 4.0f;  // metres from the sleep area center, away from the manage-garage icon
+    float iconDistance = 10.5f;   // metres from the manage-garage icon toward the bay door
     float iconOffsetSide = 0.0f;  // metres sideways
     int log = 0;                  // 0 off (no log file), 1 normal, 2 verbose (dumps nearby triggers)
 };

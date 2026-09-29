@@ -42,8 +42,8 @@ static const char kDefaultIni[] =
     "restore_sleep_sec=10\n"
     "; 1 = show the floating service icon in the garage bay\n"
     "icon=1\n"
-    "; metres to move the icon from the sleep area center, away from the manage-garage icon\n"
-    "icon_offset_away=4\n"
+    "; metres from the manage-garage icon toward the bay door\n"
+    "icon_distance=10.5\n"
     "; metres to move the icon sideways (negative = other side)\n"
     "icon_offset_side=0\n"
     "; 0 = no log file (default). For troubleshooting: 1 = normal, 2 = verbose (dumps nearby triggers)\n"
@@ -72,7 +72,7 @@ void LoadConfig(const std::string& iniPath) {
     g_cfg.radius = ReadFloat(ini, s, "radius", 50.0f);
     g_cfg.restoreSleepSec = GetPrivateProfileIntA(s, "restore_sleep_sec", 10, ini);
     g_cfg.icon = GetPrivateProfileIntA(s, "icon", 1, ini);
-    g_cfg.iconOffsetAway = ReadFloat(ini, s, "icon_offset_away", 4.0f);
+    g_cfg.iconDistance = ReadFloat(ini, s, "icon_distance", 10.5f);  // replaces icon_offset_away (v1.0.x), now ignored
     g_cfg.iconOffsetSide = ReadFloat(ini, s, "icon_offset_side", 0.0f);
     g_cfg.log = GetPrivateProfileIntA(s, "log", 0, ini);
 }

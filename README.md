@@ -38,7 +38,7 @@ Written next to the DLL on first start; read when the game starts.
 | `radius` | 50 | Max distance (m) between truck and garage when the bay prompt appears |
 | `restore_sleep_sec` | 10 | Seconds until the sleep prompt comes back if service isn't used |
 | `icon` | 1 | Show the floating service icon |
-| `icon_offset_away` | 4 | Metres to move the icon from the sleep area center, away from the manage-garage icon |
+| `icon_distance` | 10.5 | Metres from the manage-garage icon toward the bay door |
 | `icon_offset_side` | 0 | Metres to move the icon sideways (negative = other side) |
 | `log` | 0 | 0 = no log file. For troubleshooting: 1 = normal, 2 = verbose (also dumps nearby triggers) |
 
@@ -55,7 +55,7 @@ startup from code signatures, never hard-coded; see `src/signatures.cpp`.
 | Service prompt | The game has one HUD activation slot. When the bay's sleep trigger asks for the sleep prompt near an eligible garage, the plugin calls the game's `start_activation(service, garage item)` instead. Enter then opens the real service screen (it only needs the item's position). |
 | Back to sleep | After the service screen was used, or the timeout, the sleep prompt is put back and kept while the truck stays in the bay (the game clears it e.g. when the truck is rebuilt after a paint change) |
 | Leaving the bay | Read from the bay's own sleep trigger (inside/outside state) in the game's trigger list, so it works whatever prompt is showing |
-| Service icon | One of the game's own activation markers (the model and animation a service station uses), placed at the center of the bay's sleep trigger and drawn from the garage's draw method. Released on pause, so it never holds game resources at exit. |
+| Service icon | One of the game's own activation markers (the model and animation a service station uses), placed along the garage's own bay axis, a set distance from the manage-garage icon (so it stays in the entrance bay in any garage size), and drawn from the garage's draw method. Released on pause, so it never holds game resources at exit. |
 
 Features degrade instead of breaking: if only the icon's signatures fail, the service prompt still works; if the
 core signatures fail, the plugin does nothing and prints `[Service At Garage] INACTIVE`. It never guesses.

@@ -12,6 +12,7 @@ namespace sag {
 uint64_t g_frame;
 bool g_haveTruckPos;
 double g_truckX, g_truckY, g_truckZ;
+double g_truckHeading;
 GarageEntry g_garages[32];
 TriggerInfo g_triggers[512];
 int g_numTriggers;
@@ -34,6 +35,7 @@ SCSAPI_VOID OnTruckPlacement(const scs_string_t, const scs_u32_t, const scs_valu
     g_truckX = value->value_dplacement.position.x;
     g_truckY = value->value_dplacement.position.y;
     g_truckZ = value->value_dplacement.position.z;
+    g_truckHeading = value->value_dplacement.orientation.heading;
     g_haveTruckPos = true;
 }
 
