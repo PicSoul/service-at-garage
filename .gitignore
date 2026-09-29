@@ -15,6 +15,7 @@
 !/tools/
 !/packaging/
 !/third_party/
+!/docs/
 
 # inside whitelisted folders
 /third_party/scs_sdk/examples/

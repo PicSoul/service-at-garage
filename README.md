@@ -3,6 +3,10 @@
 A plugin for **American Truck Simulator** and **Euro Truck Simulator 2** that lets you **repair and service your truck
 at your own garage** instead of driving to a service center.
 
+![Driving up to an owned garage with the floating service icon in the bay, pulling in, and opening the service screen from the service prompt](docs/demo.gif)
+
+*The drive up to the garage is shown at double speed.*
+
 - Pull into the bay of a garage you own and stop: the game's own **service prompt** appears where the sleep prompt
   would. Press Enter and the normal service screen opens.
 - After you use it, or after 10 seconds, the prompt switches back to **sleep**, so sleeping at your garage still works.
