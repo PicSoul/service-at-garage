@@ -51,7 +51,8 @@ Settings are read when the game starts.
                        manage-garage icon
   icon_offset_side=0   metres to move the icon sideways (negative =
                        other side)
-  log=1                0 = off, 1 = normal, 2 = verbose
+  log=0                0 = no log file, 1 = normal, 2 = verbose
+                       (only needed for troubleshooting)
 
 
 AFTER A GAME UPDATE

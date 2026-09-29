@@ -113,6 +113,7 @@ GarageEntry* FindEligibleGarage(double* outDist) {
 }
 
 void __fastcall HookGarageItemUpdate(void* item) {
+    if (g_passthrough) return OrigGarageItemUpdate(item);
     OrigGarageItemUpdate(item);
     RememberGarage(item);
 }
@@ -221,6 +222,7 @@ static void LogNearbyTriggers() {
 }
 
 void __fastcall HookTriggerUpdate(void* core) {
+    if (g_passthrough) return OrigTriggerUpdate(core);
     OrigTriggerUpdate(core);
     if (!g_cfg.enabled) return;
     if (g_frame % 15 == 0) {

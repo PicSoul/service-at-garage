@@ -16,12 +16,16 @@ struct Config {
     int icon = 1;                 // show the floating service icon in the bay
     float iconOffsetAway = 4.0f;  // metres from the sleep area center, away from the manage-garage icon
     float iconOffsetSide = 0.0f;  // metres sideways
-    int log = 1;                  // 0 off, 1 normal, 2 verbose (dumps nearby triggers)
+    int log = 0;                  // 0 off (no log file), 1 normal, 2 verbose (dumps nearby triggers)
 };
 extern Config g_cfg;
 
 // Loaded game executable (amtrucks.exe / eurotrucks2.exe).
 extern uintptr_t g_base, g_size;
+
+// Set at shutdown: every hook just calls the original game function. A hook that another plugin has
+// chained on top of cannot be removed safely, so it stays installed in this state.
+extern volatile bool g_passthrough;
 
 void LogOpen(const std::string& path);
 void LogClose();

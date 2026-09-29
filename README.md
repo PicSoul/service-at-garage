@@ -40,7 +40,7 @@ Written next to the DLL on first start; read when the game starts.
 | `icon` | 1 | Show the floating service icon |
 | `icon_offset_away` | 4 | Metres to move the icon from the sleep area center, away from the manage-garage icon |
 | `icon_offset_side` | 0 | Metres to move the icon sideways (negative = other side) |
-| `log` | 1 | 0 = off, 1 = normal, 2 = verbose (also dumps nearby triggers) |
+| `log` | 0 | 0 = no log file. For troubleshooting: 1 = normal, 2 = verbose (also dumps nearby triggers) |
 
 A `[Signatures]` section, if present, is written by the update tool (see below).
 

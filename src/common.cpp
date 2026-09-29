@@ -7,6 +7,7 @@ namespace sag {
 
 Config g_cfg;
 uintptr_t g_base, g_size;
+volatile bool g_passthrough;
 static FILE* g_log;
 
 void LogOpen(const std::string& path) { fopen_s(&g_log, path.c_str(), "w"); }
@@ -45,8 +46,8 @@ static const char kDefaultIni[] =
     "icon_offset_away=4\n"
     "; metres to move the icon sideways (negative = other side)\n"
     "icon_offset_side=0\n"
-    "; 0 = off, 1 = normal, 2 = verbose (dumps nearby triggers)\n"
-    "log=1\n";
+    "; 0 = no log file (default). For troubleshooting: 1 = normal, 2 = verbose (dumps nearby triggers)\n"
+    "log=0\n";
 
 static float ReadFloat(const char* ini, const char* section, const char* key, float def) {
     char buf[32];
@@ -73,7 +74,7 @@ void LoadConfig(const std::string& iniPath) {
     g_cfg.icon = GetPrivateProfileIntA(s, "icon", 1, ini);
     g_cfg.iconOffsetAway = ReadFloat(ini, s, "icon_offset_away", 4.0f);
     g_cfg.iconOffsetSide = ReadFloat(ini, s, "icon_offset_side", 0.0f);
-    g_cfg.log = GetPrivateProfileIntA(s, "log", 1, ini);
+    g_cfg.log = GetPrivateProfileIntA(s, "log", 0, ini);
 }
 
 bool SafeRead(const void* src, void* dst, size_t n) {

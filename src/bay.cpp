@@ -67,6 +67,7 @@ static void* FindBayTrigger() {
 }
 
 void __fastcall HookStartActivation(void* self, int type, void* data) {
+    if (g_passthrough) return OrigStartActivation(self, type, data);
     g_gameplay = self;
     if (g_internal) {
         OrigStartActivation(self, type, data);
@@ -94,6 +95,7 @@ void __fastcall HookStartActivation(void* self, int type, void* data) {
 }
 
 void __fastcall HookStopActivation(void* self) {
+    if (g_passthrough) return OrigStopActivation(self);
     if (!g_internal && g_state != BayState::Idle) {
         int type = 0;
         Read(self, g_game.slotType, type);
@@ -105,6 +107,7 @@ void __fastcall HookStopActivation(void* self) {
 }
 
 void __fastcall HookPerformActivation(void* self) {
+    if (g_passthrough) return OrigPerformActivation(self);
     int type = 0;
     void* data = nullptr;
     Read(self, g_game.slotType, type);

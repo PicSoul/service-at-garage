@@ -125,6 +125,7 @@ void IconOnPause(bool paused) {
 }
 
 void __fastcall HookGarageItemDraw(void* item, void* ctx) {
+    if (g_passthrough) return OrigGarageItemDraw(item, ctx);
     OrigGarageItemDraw(item, ctx);
     // Like a real service station, hide the icon while its prompt is active.
     if (item == g_iconGarage && g_iconValid && g_marker.inst && BayIdle()) ((MarkerDraw_t)g_game.markerDraw)(&g_marker, ctx);
