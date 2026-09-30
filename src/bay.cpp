@@ -22,6 +22,10 @@ static void* g_bayTrigger;   // sleep trigger of the bay (null = unknown, use di
 static ULONGLONG g_shownAt;
 static bool g_internal;      // the plugin itself is calling start/stop
 static bool g_ourSleep;      // the sleep prompt in the slot was put there by the plugin
+static bool g_noSleep;       // the game gave no sleep prompt in this bay (e.g. ATS car mode): never add one
+static void* g_zone;         // eligible sleep zone the vehicle is in (seen by the trigger scan)
+static ULONGLONG g_zoneSince;
+static bool g_zoneHandled;   // this zone entry already led to a prompt (ours or the game's)
 
 bool BayIdle() { return g_state == BayState::Idle; }
 
@@ -35,6 +39,7 @@ static void SlotRead(int& type, void*& item) {
 static void SetState(BayState s) {
     if (s == BayState::Idle) {
         g_ourSleep = false;
+        g_noSleep = false;
         g_bayTrigger = nullptr;
     }
     g_state = s;
@@ -76,6 +81,7 @@ void __fastcall HookStartActivation(void* self, int type, void* data) {
     }
     if (type == kActSleep || type == kActManageGarage) IconLogGeometry(type == kActManageGarage ? data : nullptr, type == kActSleep ? "sleep prompt" : "manage-garage prompt");
     // Only replace the sleep prompt on a fresh bay entry, not while still parked after service.
+    if (type == kActSleep) g_zoneHandled = true;
     if (g_cfg.enabled && g_state == BayState::Idle && type == kActSleep && data == nullptr) {
         Log("sleep prompt requested (truck %.1f %.1f %.1f)", g_truckX, g_truckY, g_truckZ);
         double dist = 0;
@@ -122,8 +128,10 @@ void __fastcall HookPerformActivation(void* self) {
     }
 }
 
-// Puts the sleep prompt in the slot if it holds our service prompt or nothing at all.
+// Puts the sleep prompt in the slot if it holds our service prompt or nothing at all. Not in a bay where
+// the game itself gave no sleep prompt: there our service prompt just stays while the vehicle is in the bay.
 static void EnsureSleepPrompt(const char* why) {
+    if (g_noSleep) return;
     int type;
     void* data;
     SlotRead(type, data);
@@ -175,13 +183,64 @@ void BayOnFrame() {
         return;
     }
     if (g_state == BayState::ServiceShown) {
-        if (g_cfg.restoreSleepSec > 0 && GetTickCount64() - g_shownAt > (ULONGLONG)g_cfg.restoreSleepSec * 1000) {
+        if (!g_noSleep && g_cfg.restoreSleepSec > 0 && GetTickCount64() - g_shownAt > (ULONGLONG)g_cfg.restoreSleepSec * 1000) {
             SetState(BayState::BayWatch);
             EnsureSleepPrompt("timeout");
         }
         return;
     }
+    if (g_noSleep) {
+        // No sleep prompt to go back to: offer service again once the slot is empty.
+        int type;
+        void* data;
+        SlotRead(type, data);
+        if (type != 0) return;
+        Log("showing service prompt again (service used / slot cleared)");
+        g_shownAt = GetTickCount64();
+        SetState(BayState::ServiceShown);
+        CallStart(kActService, g_serviceItem);
+        return;
+    }
     EnsureSleepPrompt("service used / slot cleared");
+}
+
+// Bays where the game gives no sleep prompt (ATS car mode, Road Trip): after each trigger scan, if the
+// vehicle entered an eligible garage's sleep zone and the game put no prompt in the slot within a second,
+// the plugin shows the service prompt itself. With a truck the game's sleep prompt comes first and is
+// replaced in HookStartActivation as before, so this never runs.
+void BayOnTriggerScan(void* gameplay) {
+    if (gameplay) g_gameplay = gameplay;
+    void* zone = nullptr;
+    GarageEntry* garage = nullptr;
+    double dist = 0;
+    if (g_cfg.enabled && g_game.triggers && (garage = FindEligibleGarage(&dist, false)) != nullptr) {
+        for (int i = 0; i < g_numTriggers && !zone; i++) {
+            TriggerInfo& t = g_triggers[i];
+            if (!t.sleep || TriggerState(t.trig) != 3) continue;
+            double dx = PlacementWorld(t.pos, 0) - garage->x, dz = PlacementWorld(t.pos, 2) - garage->z;
+            if (dx * dx + dz * dz <= kTriggerToGarage * kTriggerToGarage) zone = t.trig;
+        }
+    }
+    if (zone != g_zone) {
+        g_zone = zone;
+        g_zoneSince = GetTickCount64();
+        g_zoneHandled = false;
+    }
+    if (!zone || g_zoneHandled || !g_gameplay || g_state != BayState::Idle) return;
+    if (GetTickCount64() - g_zoneSince < 1000) return;  // give the game's own sleep prompt time to appear
+    g_zoneHandled = true;
+    int type;
+    void* data;
+    SlotRead(type, data);
+    if (type != 0) return;  // the game shows some other prompt here; leave it alone
+    g_serviceItem = garage->item;
+    g_shownAt = GetTickCount64();
+    SetState(BayState::ServiceShown);
+    g_noSleep = true;
+    g_bayTrigger = zone;
+    Log("entered garage bay without a sleep prompt -> showing service prompt for garage %p (%.1f m), bay trigger %p",
+        garage->item, dist, zone);
+    CallStart(kActService, garage->item);
 }
 
 }  // namespace sag

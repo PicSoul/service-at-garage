@@ -35,6 +35,8 @@ static const Signature kSignatures[] = {
      "44 8B 80 ? ? ? ?", false},
     {"SAGSIG:MarkerDraw=48 89 5C 24 08 57 48 83 EC 30 48 8B 01 48 8B DA 48 8B F9", false},
     {"SAGSIG:MarkerRelease=48 89 5C 24 08 57 48 83 EC 20 48 8B D9 BF FF FF FF FF 48 8B 49 08", false},
+    {"SAGSIG:GaragePumpModes=48 89 5C 24 10 57 48 83 EC 20 4C 8B 81 80 00 00 00 8B DA 48 8B F9 4D 85 C0 74 ? 41 0F "
+     "B6 40 48 F6 D0 A8 01 74 ? 49 8B 40 48", false},
 };
 
 // Operands read from a match: byte position and size inside the signature. Must match
@@ -230,6 +232,7 @@ void ResolveSignatures(const std::string& iniPath, const std::string& buildId, s
     g.markerPlace = Match("MarkerPlace");
     g.markerDraw = Match("MarkerDraw");
     g.markerRelease = Match("MarkerRelease");
+    g.garagePumpModes = Match("GaragePumpModes");
 
     // Offsets and data, each checked for plausibility
     std::string problems;
@@ -257,6 +260,7 @@ void ResolveSignatures(const std::string& iniPath, const std::string& buildId, s
     g.triggers = g.core && triggerOk;
     g.icon = g.triggers && g.garageItemDraw && g.markerCreate && g.markerPlace && g.markerDraw && g.markerRelease &&
              g.serviceIconModel && g.serviceIconAnim;
+    g.carFuel = g.core && g.garagePumpModes;
     if (!problems.empty()) Log("layout problems:%s", problems.c_str());
     Log("layout: slot type +0x%X item +0x%X | garage item node +0x%X garage +0x%X status +0x%X | triggers +0x%X",
         g.slotType, g.slotItem, g.itemNode, g.itemGarage, g.garageStatus, g.triggerManager);

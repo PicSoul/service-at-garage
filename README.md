@@ -11,6 +11,8 @@ at your own garage** instead of driving to a service center.
   would. Press Enter and the normal service screen opens.
 - After you use it, or after 10 seconds, the prompt switches back to **sleep**, so sleeping at your garage still works.
 - A floating green **service icon** marks the bay, like at a real service center.
+- **ATS Road Trip cars** get the service prompt too (the game gives cars no sleep prompt in the bay, so the service
+  prompt simply stays while you're in the bay), and can refuel at your garages' fuel pumps.
 - Works with **any garage the game knows**, including garages added by map mods, as long as the bay has a sleep zone.
   Nothing on the map is changed, so there are no conflicts with map mods.
 - Optional: only fully upgraded garages, or every garage.
@@ -40,6 +42,7 @@ Written next to the DLL on first start; read when the game starts.
 | `icon` | 1 | Show the floating service icon |
 | `icon_distance` | 10.5 | Metres from the manage-garage icon toward the bay door |
 | `icon_offset_side` | 0 | Metres to move the icon sideways (negative = other side) |
+| `car_fuel` | 1 | Cars (ATS Road Trip) can refuel at your garages' fuel pumps, like trucks |
 | `log` | 0 | 0 = no log file. For troubleshooting: 1 = normal, 2 = verbose (also dumps nearby triggers) |
 
 A `[Signatures]` section, if present, is written by the update tool (see below).

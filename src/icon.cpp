@@ -26,7 +26,6 @@ typedef void(__fastcall* MarkerPlace_t)(Marker* m, const Placement* p);
 typedef void(__fastcall* MarkerDraw_t)(Marker* m, void* renderCtx);
 typedef void(__fastcall* MarkerRelease_t)(Marker* m);
 
-const double kTriggerToGarage = 40.0;  // a bay's sleep trigger lies within this distance of its garage item
 const size_t kNodeRotation = 0x10;     // node: packed position, then rotation quaternion
 
 static Marker g_marker;

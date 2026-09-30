@@ -20,6 +20,7 @@ struct GameLayout {
     uintptr_t markerPlace;        //   place(marker, placement)
     uintptr_t markerDraw;         //   draw(marker, render context)
     uintptr_t markerRelease;      //   destructor (drops the model references)
+    uintptr_t garagePumpModes;    // garage fuel pump: serves(pump, vehicle mode bits) -> bool
 
     // Data: the service entries (index 1) of the activation model / animation path tables
     uintptr_t serviceIconModel;
@@ -38,6 +39,7 @@ struct GameLayout {
     bool core;      // service prompt in the bay
     bool triggers;  // trigger list (exact bay leave detection, icon placement)
     bool icon;      // floating service icon
+    bool carFuel;   // refuelling at garage pumps in car mode (ATS Road Trip)
 };
 extern GameLayout g_game;
 

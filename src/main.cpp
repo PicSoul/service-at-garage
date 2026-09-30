@@ -88,6 +88,8 @@ SCSAPI_RESULT scs_telemetry_init(const scs_u32_t version, const scs_telemetry_in
         g_game.triggers = g_game.icon = false;
     if (ok && g_game.icon && !Hook(g_game.garageItemDraw, (void*)HookGarageItemDraw, &OrigGarageItemDraw, "garage item draw"))
         g_game.icon = false;
+    if (ok && g_game.carFuel && !Hook(g_game.garagePumpModes, (void*)HookGaragePumpModes, &OrigGaragePumpModes, "garage pump modes"))
+        g_game.carFuel = false;
     ok = ok && MH_EnableHook(MH_ALL_HOOKS) == MH_OK;
     if (!ok) {
         MH_Uninitialize();

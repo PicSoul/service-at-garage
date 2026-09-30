@@ -46,6 +46,8 @@ static const char kDefaultIni[] =
     "icon_distance=10.5\n"
     "; metres to move the icon sideways (negative = other side)\n"
     "icon_offset_side=0\n"
+    "; 1 = cars (ATS Road Trip) can refuel at your garages' fuel pumps, like trucks\n"
+    "car_fuel=1\n"
     "; 0 = no log file (default). For troubleshooting: 1 = normal, 2 = verbose (dumps nearby triggers)\n"
     "log=0\n";
 
@@ -74,6 +76,7 @@ void LoadConfig(const std::string& iniPath) {
     g_cfg.icon = GetPrivateProfileIntA(s, "icon", 1, ini);
     g_cfg.iconDistance = ReadFloat(ini, s, "icon_distance", 10.5f);  // replaces icon_offset_away (v1.0.x), now ignored
     g_cfg.iconOffsetSide = ReadFloat(ini, s, "icon_offset_side", 0.0f);
+    g_cfg.carFuel = GetPrivateProfileIntA(s, "car_fuel", 1, ini);
     g_cfg.log = GetPrivateProfileIntA(s, "log", 0, ini);
 }
 

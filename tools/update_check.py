@@ -82,6 +82,7 @@ SIGNATURES = {
     'MarkerPlace': [('marker_flags', 34, 4, 'off')],
     'MarkerDraw': [],
     'MarkerRelease': [],
+    'GaragePumpModes': [],
 }
 # Data-only signatures that may match several identical copies of the same code, as long as every match
 # gives the same values (the game has two identical icon functions).
@@ -96,6 +97,7 @@ OPTIONAL_NOTE = {
     'MarkerPlace': 'without it there is no service icon',
     'MarkerDraw': 'without it there is no service icon',
     'MarkerRelease': 'without it there is no service icon',
+    'GaragePumpModes': 'without it cars (ATS Road Trip) cannot refuel at your garages',
 }
 ICON_PATHS = {'icon_anim_table': '/model/activation/service.pma', 'icon_model_table': '/model/activation/service.pmd'}
 # Values found for 1.61 (ATS and ETS2), shown for comparison only.

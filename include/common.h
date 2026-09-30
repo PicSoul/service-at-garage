@@ -16,6 +16,7 @@ struct Config {
     int icon = 1;                 // show the floating service icon in the bay
     float iconDistance = 10.5f;   // metres from the manage-garage icon toward the bay door
     float iconOffsetSide = 0.0f;  // metres sideways
+    int carFuel = 1;              // cars (ATS Road Trip) can refuel at garage pumps
     int log = 0;                  // 0 off (no log file), 1 normal, 2 verbose (dumps nearby triggers)
 };
 extern Config g_cfg;

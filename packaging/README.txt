@@ -51,6 +51,8 @@ Settings are read when the game starts.
                        bay door
   icon_offset_side=0   metres to move the icon sideways (negative =
                        other side)
+  car_fuel=1           1 = cars (ATS Road Trip) can refuel at your
+                       garages' fuel pumps, like trucks
   log=0                0 = no log file, 1 = normal, 2 = verbose
                        (only needed for troubleshooting)
 

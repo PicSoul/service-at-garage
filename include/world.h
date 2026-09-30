@@ -15,6 +15,8 @@ const uint32_t kGarageOwned = 0x2, kGarageTiny = 0x4, kGarageLarge = 0x1;  // ga
 
 extern uint64_t g_frame;
 
+const double kTriggerToGarage = 40.0;  // a bay's sleep trigger lies within this distance of its garage item
+
 // ---- truck position (telemetry channel)
 extern bool g_haveTruckPos;
 extern double g_truckX, g_truckY, g_truckZ;
@@ -34,7 +36,7 @@ bool IsFresh(const GarageEntry& g);
 bool IsEligible(const GarageEntry& g);  // passes the ownership / level settings
 int GarageLevel(uint32_t status);       // 1 tiny, 2 small, 3 large
 GarageEntry* FindGarage(void* item);
-GarageEntry* FindEligibleGarage(double* outDist);  // nearest eligible garage within the radius
+GarageEntry* FindEligibleGarage(double* outDist, bool log = true);  // nearest eligible garage within the radius
 
 // ---- triggers near the player (scanned from the trigger update hook)
 struct TriggerInfo {
@@ -53,8 +55,13 @@ extern int g_numTriggers;
 double PlacementWorld(const uint8_t* pos16, int axis);  // 0 = x, 1 = y, 2 = z
 bool TriggerListed(void* trig);
 uint8_t TriggerState(void* trig);  // live: 3 = truck inside, 2 = outside, 0 = unknown
+void* GameplayMode(void* core);    // local_gameplay_mode_u from the game core (verified), or null
 
 // Hooks installed by main.cpp
+// Garage fuel pump: does it serve these vehicle modes (bit = 1 << mode)? The game answers no for cars
+// (map data marks garage pumps as truck-only); with car_fuel a pump that serves trucks serves cars too.
+bool __fastcall HookGaragePumpModes(void* pump, uint32_t modes);
+extern bool(__fastcall* OrigGaragePumpModes)(void* pump, uint32_t modes);
 void __fastcall HookGarageItemUpdate(void* item);
 void __fastcall HookTriggerUpdate(void* core);
 extern void(__fastcall* OrigGarageItemUpdate)(void* item);

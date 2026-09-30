@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdio.h>
 
+#include "bay.h"
 #include "common.h"
 #include "icon.h"
 #include "signatures.h"
@@ -13,11 +14,13 @@ uint64_t g_frame;
 bool g_haveTruckPos;
 double g_truckX, g_truckY, g_truckZ;
 double g_truckHeading;
+static uint64_t g_placementUpdates;  // SDK truck placement callbacks received
 GarageEntry g_garages[32];
 TriggerInfo g_triggers[512];
 int g_numTriggers;
 void(__fastcall* OrigGarageItemUpdate)(void* item);
 void(__fastcall* OrigTriggerUpdate)(void* core);
+bool(__fastcall* OrigGaragePumpModes)(void* pump, uint32_t modes);
 
 // Trigger object layout (checked at runtime by the scan; a wrong value only disables the icon and the
 // exact leave detection, never the service prompt).
@@ -36,6 +39,7 @@ SCSAPI_VOID OnTruckPlacement(const scs_string_t, const scs_u32_t, const scs_valu
     g_truckY = value->value_dplacement.position.y;
     g_truckZ = value->value_dplacement.position.z;
     g_truckHeading = value->value_dplacement.orientation.heading;
+    g_placementUpdates++;
     g_haveTruckPos = true;
 }
 
@@ -96,15 +100,16 @@ static void RememberGarage(void* item) {
     g_garages[free >= 0 ? free : oldest] = e;
 }
 
-GarageEntry* FindEligibleGarage(double* outDist) {
+GarageEntry* FindEligibleGarage(double* outDist, bool log) {
     if (!g_haveTruckPos) return nullptr;
     GarageEntry* best = nullptr;
     double bestD = g_cfg.radius;
     for (GarageEntry& g : g_garages) {
         if (!IsFresh(g)) continue;
         double d = sqrt((g.x - g_truckX) * (g.x - g_truckX) + (g.y - g_truckY) * (g.y - g_truckY) + (g.z - g_truckZ) * (g.z - g_truckZ));
-        Log("  garage %p at (%.1f %.1f %.1f) dist=%.1f status=%s0x%x level=%d eligible=%d", g.item, g.x, g.y, g.z, d,
-            g.statusValid ? "" : "?", g.status, g.statusValid ? GarageLevel(g.status) : 0, IsEligible(g));
+        if (log)
+            Log("  garage %p at (%.1f %.1f %.1f) dist=%.1f status=%s0x%x level=%d eligible=%d", g.item, g.x, g.y, g.z, d,
+                g.statusValid ? "" : "?", g.status, g.statusValid ? GarageLevel(g.status) : 0, IsEligible(g));
         if (IsEligible(g) && d <= bestD) {
             bestD = d;
             best = &g;
@@ -112,6 +117,15 @@ GarageEntry* FindEligibleGarage(double* outDist) {
     }
     if (outDist) *outDist = bestD;
     return best;
+}
+
+const uint32_t kModeTruck = 1u << 0, kModeCar = 1u << 2;  // vehicle mode bits: truck 0, car 2 (ATS Road Trip)
+
+bool __fastcall HookGaragePumpModes(void* pump, uint32_t modes) {
+    bool serves = OrigGaragePumpModes(pump, modes);
+    if (serves || g_passthrough || !g_cfg.enabled || !g_cfg.carFuel || !(modes & kModeCar)) return serves;
+    // Same answer as for a truck: the game still checks the pump's garage (valid, owned) itself.
+    return OrigGaragePumpModes(pump, (modes & ~kModeCar) | kModeTruck);
 }
 
 void __fastcall HookGarageItemUpdate(void* item) {
@@ -223,6 +237,60 @@ static void LogNearbyTriggers() {
     }
 }
 
+// ---------------------------------------------------------------- gameplay mode / vehicle mode
+
+
+// The local gameplay mode (owner of the activation slot) at core+0x2b30, as the game's own
+// is_activation_enabled reads it. Null unless its vtable holds the start_activation we hook (+0x190).
+void* GameplayMode(void* core) {
+    void* gm = nullptr;
+    uintptr_t* vt = nullptr;
+    uintptr_t start = 0;
+    if (!Read(core, 0x2b30, gm) || !gm || !Read(gm, 0, vt) || !vt || !Read(vt, 0x190, start)) return nullptr;
+    return start == g_game.startActivation ? gm : nullptr;
+}
+
+// Vehicle mode (gameplay mode virtual +0xe0): 0 = truck, 2 = car (ATS Road Trip). -1 = unknown. POD only (__try).
+static int VehicleMode(void* gm) {
+    if (!gm) return -1;
+    __try {
+        typedef int(__fastcall * Fn)(void*);
+        return ((Fn)(*(void***)gm)[0xe0 / 8])(gm);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return -1;
+    }
+}
+
+// Log (log=1): vehicle mode changes, and entering/leaving sleep zones with the SDK position at that moment.
+static void LogVehicleDiagnostics(void* gm) {
+    static int lastMode = -2;
+    static void* lastInside = nullptr;
+    static uint64_t lastUpdates;
+    int mode = VehicleMode(gm);
+    if (mode != lastMode) {
+        Log("vehicle mode %d (0 = truck, 2 = car)", mode);
+        lastMode = mode;
+    }
+    void* inside = nullptr;
+    for (int i = 0; i < g_numTriggers && !inside; i++)
+        if (g_triggers[i].sleep && TriggerState(g_triggers[i].trig) == 3) inside = g_triggers[i].trig;
+    if (inside != lastInside) {
+        GarageEntry* nearest = nullptr;
+        double best = 1e18;
+        for (GarageEntry& g : g_garages) {
+            if (!IsFresh(g)) continue;
+            double d = (g.x - g_truckX) * (g.x - g_truckX) + (g.z - g_truckZ) * (g.z - g_truckZ);
+            if (d < best) best = d, nearest = &g;
+        }
+        Log("%s sleep zone %p (mode %d); SDK position (%.1f %.1f %.1f), %llu SDK updates since last check, "
+            "nearest garage %p %.1f m",
+            inside ? "entered" : "left", inside ? inside : lastInside, mode, g_truckX, g_truckY, g_truckZ,
+            (unsigned long long)(g_placementUpdates - lastUpdates), nearest ? nearest->item : nullptr, nearest ? sqrt(best) : -1.0);
+        lastInside = inside;
+        lastUpdates = g_placementUpdates;
+    }
+}
+
 void __fastcall HookTriggerUpdate(void* core) {
     if (g_passthrough) return OrigTriggerUpdate(core);
     OrigTriggerUpdate(core);
@@ -235,6 +303,9 @@ void __fastcall HookTriggerUpdate(void* core) {
         }
         g_numTriggers = n;
         if (g_cfg.log >= 2 && g_haveTruckPos) LogNearbyTriggers();
+        void* gm = GameplayMode(core);
+        if (g_cfg.log >= 1) LogVehicleDiagnostics(gm);
+        BayOnTriggerScan(gm);
         IconSelectTarget();
     }
     IconUpdate();
