@@ -20,7 +20,7 @@ if not exist "bin\obj" mkdir "bin\obj"
 
 cl /nologo /LD /O2 /MT /W3 /EHsc /std:c++17 /DWIN32_LEAN_AND_MEAN /D_CRT_SECURE_NO_WARNINGS ^
    /I "include" /I "%MH%\include" /I "%SDK%" ^
-   src\main.cpp src\common.cpp src\signatures.cpp src\world.cpp src\bay.cpp src\icon.cpp ^
+   src\main.cpp src\common.cpp src\ini_upgrade.cpp src\signatures.cpp src\world.cpp src\bay.cpp src\icon.cpp ^
    "%MH%\src\buffer.c" "%MH%\src\hook.c" "%MH%\src\trampoline.c" "%MH%\src\hde\hde64.c" ^
    /Fo"bin\obj\\" /Fe"bin\service_at_garage.dll" ^
    /link /DLL /EXPORT:scs_telemetry_init /EXPORT:scs_telemetry_shutdown

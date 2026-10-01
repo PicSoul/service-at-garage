@@ -291,6 +291,86 @@ static void LogVehicleDiagnostics(void* gm) {
     }
 }
 
+// ---------------------------------------------------------------- sleep zones: truck only (sleep_ignore_trailer)
+// A trigger's flags say which vehicle parts its "inside" check looks at. Sleep zones use truck + connected
+// trailers, all fully inside the area, which makes parking a rig in a tight bay fiddly. Clearing the trailer
+// bit makes the zone check the truck only. Only triggers whose single action is the sleep prompt are touched.
+// The game rebuilds triggers from map data when sectors reload, so nothing persists.
+
+const uint32_t kTrigCheckTruck = 0x4, kTrigCheckTrailers = 0x8;
+
+struct ChangedTrigger {
+    void* trig;
+    uintptr_t vtable;
+    uint8_t pos[16];
+};
+static ChangedTrigger g_changed[128];
+static int g_numChanged;
+
+static bool NearEligibleGarage(const TriggerInfo& t) {
+    double x = PlacementWorld(t.pos, 0), z = PlacementWorld(t.pos, 2);
+    for (GarageEntry& g : g_garages) {
+        if (!IsFresh(g) || !IsEligible(g)) continue;
+        if ((x - g.x) * (x - g.x) + (z - g.z) * (z - g.z) <= kTriggerToGarage * kTriggerToGarage) return true;
+    }
+    return false;
+}
+
+static bool WantsTruckOnly(const TriggerInfo& t) {
+    if (!g_cfg.enabled || !t.sleep || t.nactions != 1) return false;
+    if (g_cfg.sleepIgnoreTrailer == 2) return true;
+    return g_cfg.sleepIgnoreTrailer == 1 && NearEligibleGarage(t);
+}
+
+static TriggerInfo* FindListed(const ChangedTrigger& c) {
+    for (int i = 0; i < g_numTriggers; i++) {
+        TriggerInfo& t = g_triggers[i];
+        if (t.trig == c.trig && t.vtable == c.vtable && memcmp(t.pos, c.pos, sizeof(c.pos)) == 0) return &t;
+    }
+    return nullptr;
+}
+
+static bool IsChanged(void* trig) {
+    for (int i = 0; i < g_numChanged; i++)
+        if (g_changed[i].trig == trig) return true;
+    return false;
+}
+
+static void SetTrailerBit(void* trig, bool on, const char* why) {
+    uint32_t f = 0;
+    char* p = (char*)trig + g_game.triggerFlags;
+    if (!SafeRead(p, &f, sizeof(f))) return;
+    uint32_t nf = on ? f | kTrigCheckTrailers : f & ~kTrigCheckTrailers;
+    if (nf != f && SafeWrite(p, &nf, sizeof(nf)) && g_cfg.log >= 2)
+        Log("sleep zone %p: %s (flags 0x%X -> 0x%X)", trig, why, f, nf);
+}
+
+static void UpdateSleepZones() {
+    // Undo or forget earlier changes. A trigger is only written while it is in the game's list with the same
+    // vtable and position as when it was changed (so never a freed or reused object).
+    for (int i = 0; i < g_numChanged;) {
+        TriggerInfo* t = FindListed(g_changed[i]);
+        if (t && !WantsTruckOnly(*t)) SetTrailerBit(t->trig, true, "trailer check restored");
+        if (!t || !WantsTruckOnly(*t)) {
+            g_changed[i] = g_changed[--g_numChanged];
+            continue;
+        }
+        i++;
+    }
+    for (int i = 0; i < g_numTriggers && g_numChanged < (int)(sizeof(g_changed) / sizeof(g_changed[0])); i++) {
+        TriggerInfo& t = g_triggers[i];
+        if (!WantsTruckOnly(t) || IsChanged(t.trig)) continue;
+        uint32_t f = 0;
+        if (!Read(t.trig, g_game.triggerFlags, f)) continue;
+        if (!(f & kTrigCheckTruck) || !(f & kTrigCheckTrailers)) continue;  // never leave a zone checking nothing
+        ChangedTrigger& c = g_changed[g_numChanged++];
+        c.trig = t.trig;
+        c.vtable = t.vtable;
+        memcpy(c.pos, t.pos, sizeof(c.pos));
+        SetTrailerBit(t.trig, false, "trailer no longer has to fit");
+    }
+}
+
 void __fastcall HookTriggerUpdate(void* core) {
     if (g_passthrough) return OrigTriggerUpdate(core);
     OrigTriggerUpdate(core);
@@ -306,6 +386,7 @@ void __fastcall HookTriggerUpdate(void* core) {
         void* gm = GameplayMode(core);
         if (g_cfg.log >= 1) LogVehicleDiagnostics(gm);
         BayOnTriggerScan(gm);
+        if (g_game.sleepTrailer) UpdateSleepZones();
         IconSelectTarget();
     }
     IconUpdate();

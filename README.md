@@ -13,6 +13,8 @@ at your own garage** instead of driving to a service center.
 - A floating green **service icon** marks the bay, like at a real service center.
 - **ATS Road Trip cars** get the service prompt too (the game gives cars no sleep prompt in the bay, so the service
   prompt simply stays while you're in the bay), and can refuel at your garages' fuel pumps.
+- **Easier parking with a trailer:** by default, every sleep spot in the game only needs your truck inside, not the
+  whole trailer as well. Set `sleep_ignore_trailer=1` to limit this to your garages, or `0` for the game's behaviour.
 - Works with **any garage the game knows**, including garages added by map mods, as long as the bay has a sleep zone.
   Nothing on the map is changed, so there are no conflicts with map mods.
 - Optional: only fully upgraded garages, or every garage.
@@ -30,7 +32,8 @@ Steam); `install.bat /uninstall` removes it.
 
 ## Configuration (`service_at_garage.ini`)
 
-Written next to the DLL on first start; read when the game starts.
+Written next to the DLL on first start; read when the game starts. After an update, new settings are added to your
+existing file automatically (your values are kept, and settings that no longer exist are removed).
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -43,6 +46,7 @@ Written next to the DLL on first start; read when the game starts.
 | `icon_distance` | 10.5 | Metres from the manage-garage icon toward the bay door |
 | `icon_offset_side` | 0 | Metres to move the icon sideways (negative = other side) |
 | `car_fuel` | 1 | Cars (ATS Road Trip) can refuel at your garages' fuel pumps, like trucks |
+| `sleep_ignore_trailer` | 2 | Sleep spots only need your truck inside, not the trailer: 0 = off (game default), 1 = your garages, 2 = every sleep spot in the game |
 | `log` | 0 | 0 = no log file. For troubleshooting: 1 = normal, 2 = verbose (also dumps nearby triggers) |
 
 A `[Signatures]` section, if present, is written by the update tool (see below).

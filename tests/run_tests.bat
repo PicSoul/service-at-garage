@@ -8,7 +8,7 @@ set "VCVARS=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary
 call "%VCVARS%" >nul 2>nul || exit /b 1
 if not exist "bin\obj_test" mkdir "bin\obj_test"
 cl /nologo /O2 /MT /W3 /EHsc /std:c++17 /DWIN32_LEAN_AND_MEAN /D_CRT_SECURE_NO_WARNINGS /I "include" ^
-   tests\sig_test.cpp src\common.cpp src\signatures.cpp /Fo"bin\obj_test\\" /Fe"bin\sig_test.exe" >nul
+   tests\sig_test.cpp src\common.cpp src\ini_upgrade.cpp src\signatures.cpp /Fo"bin\obj_test\\" /Fe"bin\sig_test.exe" >nul
 if errorlevel 1 (
     echo [ERROR] Building the test failed.
     exit /b 1

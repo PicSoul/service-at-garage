@@ -3,6 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <fstream>
+#include <sstream>
+
+#include "ini_upgrade.h"
+
 namespace sag {
 
 Config g_cfg;
@@ -48,6 +53,9 @@ static const char kDefaultIni[] =
     "icon_offset_side=0\n"
     "; 1 = cars (ATS Road Trip) can refuel at your garages' fuel pumps, like trucks\n"
     "car_fuel=1\n"
+    "; sleep spots only need your truck inside, not the trailer: 0 = off (game default), 1 = your garages,\n"
+    ";   2 = every sleep spot in the game\n"
+    "sleep_ignore_trailer=2\n"
     "; 0 = no log file (default). For troubleshooting: 1 = normal, 2 = verbose (dumps nearby triggers)\n"
     "log=0\n";
 
@@ -57,15 +65,39 @@ static float ReadFloat(const char* ini, const char* section, const char* key, fl
     return buf[0] ? (float)atof(buf) : def;
 }
 
-void LoadConfig(const std::string& iniPath) {
-    const char* ini = iniPath.c_str();
-    if (GetFileAttributesA(ini) == INVALID_FILE_ATTRIBUTES) {
-        FILE* f = nullptr;
-        fopen_s(&f, ini, "w");
-        if (f) {
-            fputs(kDefaultIni, f);
-            fclose(f);
+// Writes `text` to `path` through a temporary file, so a crash never leaves a half-written ini.
+static bool WriteFileAtomic(const std::string& path, const std::string& text) {
+    std::string tmp = path + ".tmp";
+    {
+        std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+        if (!f) return false;
+        for (char c : text) {  // Windows line endings, as the file always had
+            if (c == '\n') f << '\r';
+            f << c;
         }
+        if (!f.flush()) return false;
+    }
+    if (MoveFileExA(tmp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) return true;
+    DeleteFileA(tmp.c_str());
+    return false;
+}
+
+std::string LoadConfig(const std::string& iniPath) {
+    const char* ini = iniPath.c_str();
+    std::string note;
+    if (GetFileAttributesA(ini) == INVALID_FILE_ATTRIBUTES) {
+        WriteFileAtomic(iniPath, kDefaultIni);
+    } else {
+        // An ini from an older version: add new settings, drop obsolete ones, keep the player's values.
+        std::ifstream f(iniPath, std::ios::binary);
+        std::stringstream text;
+        text << f.rdbuf();
+        f.close();
+        std::string upgraded;
+        std::string changes = UpgradeIni(text.str(), kDefaultIni, upgraded);
+        if (!changes.empty())
+            note = WriteFileAtomic(iniPath, upgraded) ? "updated service_at_garage.ini: " + changes
+                                                      : "could not update service_at_garage.ini (" + changes + ")";
     }
     const char* s = "service_at_garage";
     g_cfg.enabled = GetPrivateProfileIntA(s, "enabled", 1, ini);
@@ -77,7 +109,18 @@ void LoadConfig(const std::string& iniPath) {
     g_cfg.iconDistance = ReadFloat(ini, s, "icon_distance", 10.5f);  // replaces icon_offset_away (v1.0.x), now ignored
     g_cfg.iconOffsetSide = ReadFloat(ini, s, "icon_offset_side", 0.0f);
     g_cfg.carFuel = GetPrivateProfileIntA(s, "car_fuel", 1, ini);
+    g_cfg.sleepIgnoreTrailer = GetPrivateProfileIntA(s, "sleep_ignore_trailer", 2, ini);
     g_cfg.log = GetPrivateProfileIntA(s, "log", 0, ini);
+    return note;
+}
+
+bool SafeWrite(void* dst, const void* src, size_t n) {
+    __try {
+        memcpy(dst, src, n);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
 }
 
 bool SafeRead(const void* src, void* dst, size_t n) {

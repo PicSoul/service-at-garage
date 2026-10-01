@@ -34,12 +34,14 @@ struct GameLayout {
     uint32_t triggerManager;       // game core -> trigger manager
     uint32_t triggerListHead;      // trigger manager -> list head / tail sentinels
     uint32_t triggerListTail;
+    uint32_t triggerFlags;         // trigger -> flags: which vehicle parts must be inside (see world.cpp)
 
     // Which features have everything they need
     bool core;      // service prompt in the bay
     bool triggers;  // trigger list (exact bay leave detection, icon placement)
     bool icon;      // floating service icon
     bool carFuel;   // refuelling at garage pumps in car mode (ATS Road Trip)
+    bool sleepTrailer;  // sleep zones that only need the truck inside (sleep_ignore_trailer)
 };
 extern GameLayout g_game;
 

@@ -37,7 +37,8 @@ INSTALL
 SETTINGS
 --------
 The plugin creates service_at_garage.ini next to itself on first start.
-Settings are read when the game starts.
+Settings are read when the game starts. After an update, new settings are
+added to your existing file automatically; your values are kept.
 
   enabled=1            1 = on, 0 = off
   require_owned=1      1 = only garages you own, 0 = every garage
@@ -53,6 +54,10 @@ Settings are read when the game starts.
                        other side)
   car_fuel=1           1 = cars (ATS Road Trip) can refuel at your
                        garages' fuel pumps, like trucks
+  sleep_ignore_trailer=2
+                       sleep spots only need your truck inside, not
+                       the trailer: 0 = off (game default),
+                       1 = your garages, 2 = every sleep spot
   log=0                0 = no log file, 1 = normal, 2 = verbose
                        (only needed for troubleshooting)
 

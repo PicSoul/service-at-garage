@@ -64,10 +64,11 @@ SCSAPI_RESULT scs_telemetry_init(const scs_u32_t version, const scs_telemetry_in
     if (version != SCS_TELEMETRY_VERSION_1_01) return SCS_RESULT_unsupported;
     auto p = (const scs_telemetry_init_params_v101_t*)params;
     std::string ini = g_dir + "service_at_garage.ini";
-    LoadConfig(ini);
+    std::string iniNote = LoadConfig(ini);
     if (g_cfg.log) LogOpen(g_dir + "service_at_garage.log");
     std::string build = GameBuildId();
     Log("Service At Garage v%s, %s, game build %s", SAG_VERSION, GameName(), build.c_str());
+    if (!iniNote.empty()) Log("%s", iniNote.c_str());
 
     std::string summary;
     ResolveSignatures(ini, build, summary);

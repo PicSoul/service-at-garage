@@ -83,6 +83,7 @@ SIGNATURES = {
     'MarkerDraw': [],
     'MarkerRelease': [],
     'GaragePumpModes': [],
+    'TriggerInside': [('trigger_flags', 18, 1, 'off')],
 }
 # Data-only signatures that may match several identical copies of the same code, as long as every match
 # gives the same values (the game has two identical icon functions).
@@ -98,13 +99,14 @@ OPTIONAL_NOTE = {
     'MarkerDraw': 'without it there is no service icon',
     'MarkerRelease': 'without it there is no service icon',
     'GaragePumpModes': 'without it cars (ATS Road Trip) cannot refuel at your garages',
+    'TriggerInside': 'without it sleep spots need the trailer inside too (sleep_ignore_trailer is off)',
 }
 ICON_PATHS = {'icon_anim_table': '/model/activation/service.pma', 'icon_model_table': '/model/activation/service.pmd'}
 # Values found for 1.61 (ATS and ETS2), shown for comparison only.
 KNOWN_161 = {'slot_type': 0x14, 'stop_vslot': 0x198, 'slot_item': 0x18, 'slot_type_2': 0x14, 'item_node': 0x48,
              'item_marker': 0xA0, 'item_garage': 0x90, 'garage_status': 0x88, 'trigger_manager': 0x958,
-             'trigger_list_head': 0x10, 'trigger_list_tail': 0x20, 'marker_flags': 0x13C}
-ALIGN = {'slot_type': 4, 'slot_type_2': 4, 'garage_status': 4, 'marker_flags': 4}  # others: 8
+             'trigger_list_head': 0x10, 'trigger_list_tail': 0x20, 'marker_flags': 0x13C, 'trigger_flags': 0x74}
+ALIGN = {'slot_type': 4, 'slot_type_2': 4, 'garage_status': 4, 'marker_flags': 4, 'trigger_flags': 4}  # others: 8
 
 
 # ------------------------------------------------------------------------------------------------ PE
