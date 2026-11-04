@@ -84,7 +84,27 @@ SIGNATURES = {
     'MarkerRelease': [],
     'GaragePumpModes': [],
     'TriggerInside': [('trigger_flags', 18, 1, 'off')],
+    # ATS 1.62 variants ("Name.162" is another way to find "Name"; whichever matches is used)
+    'GarageItemUpdate.162': [('item_node', 19, 1, 'off')],
+    'GarageItemLayout.162': [('item_marker', 3, 4, 'off'), ('item_garage', 40, 4, 'off')],
+    'GarageStatus.162': [('garage_status', 2, 4, 'off')],
+    'MarkerCreate.162': [],
+    'MarkerPlace.162': [('marker_flags', 38, 4, 'off')],
+    'MarkerDraw.162': [],
+    'MarkerRelease.162': [],
 }
+
+
+def base_name(name):
+    return name.split('.')[0]
+
+
+def variants(base):
+    """All signature names that find `base`, oldest first."""
+    return [n for n in SIGNATURES if base_name(n) == base]
+
+
+BASES = list(dict.fromkeys(base_name(n) for n in SIGNATURES))
 # Data-only signatures that may match several identical copies of the same code, as long as every match
 # gives the same values (the game has two identical icon functions).
 SAME_VALUES_OK = {'IconTables'}
@@ -195,7 +215,7 @@ def unique_enough(exe, name, pat, hits):
     """Exactly one match, or (for SAME_VALUES_OK) several matches that all give the same values."""
     if len(hits) == 1:
         return True
-    if name not in SAME_VALUES_OK or not hits:
+    if base_name(name) not in SAME_VALUES_OK or not hits:
         return False
     return len({tuple(sorted(extract(exe, name, h)[0].items())) for h in hits}) == 1
 
@@ -284,13 +304,13 @@ def builtin_signatures(dll_paths, source_path):
         if dll and os.path.exists(dll):
             data = open(dll, 'rb').read()
             sigs = {m.group(1).decode(): m.group(2).decode()
-                    for m in re.finditer(rb'SAGSIG:(\w+)=([0-9A-Fa-f? ]+)\x00', data)}
+                    for m in re.finditer(rb'SAGSIG:([\w.]+)=([0-9A-Fa-f? ]+)\x00', data)}
             if sigs:
                 return sigs, dll
     if os.path.exists(source_path):
         src = open(source_path, encoding='utf-8').read()
         joined = re.sub(r'"\s*\n\s*"', '', src)   # join C string literal continuations
-        sigs = dict(re.findall(r'"SAGSIG:(\w+)=([0-9A-Fa-f? ]+)"', joined))
+        sigs = dict(re.findall(r'"SAGSIG:([\w.]+)=([0-9A-Fa-f? ]+)"', joined))
         if sigs:
             return sigs, source_path
     return {}, None
@@ -386,36 +406,44 @@ def check_game(args, here, game, exe_path):
     known_path = os.path.join(here, 'known_good.json')
     known = json.load(open(known_path)) if os.path.exists(known_path) else {}
     for name, ops in SIGNATURES.items():   # first run: values found for 1.61
-        known.setdefault(name, {v: KNOWN_161[v] for v, _, _, k in ops if v in KNOWN_161})
+        known.setdefault(base_name(name), {v: KNOWN_161[v] for v, _, _, k in ops if v in KNOWN_161})
     new_known = {}
     effective_overrides = dict(overrides) if use_overrides else {}
     repairs, broken = {}, []
-    for name in SIGNATURES:
-        source = 'ini' if name in effective_overrides else 'built-in'
-        sig = effective_overrides.get(name) or builtins.get(name)
+    for base in BASES:
+        # the first variant that matches wins; if none does, the newest one is repaired
+        name, sig, pat, hits, source = None, None, None, [], 'built-in'
+        for v in variants(base):
+            vsig = effective_overrides.get(v) or builtins.get(v)
+            if not vsig:
+                continue
+            vpat = parse(vsig)
+            vhits = find_all(exe.text, vpat)
+            name, sig, pat, hits = v, vsig, vpat, vhits
+            source = 'ini' if v in effective_overrides else 'built-in'
+            if vhits and unique_enough(exe, v, vpat, vhits):
+                break
         if not sig:
-            print(f'[MISSING   ] {name}: no built-in signature in this plugin build')
-            broken.append(name)
+            print(f'[MISSING   ] {base}: no built-in signature in this plugin build')
+            broken.append(base)
             continue
-        pat = parse(sig)
-        hits = find_all(exe.text, pat)
         if hits and unique_enough(exe, name, pat, hits):
             values, problems = extract(exe, name, hits[0])
             status = 'OK' if not problems else 'SUSPICIOUS'
-            print(f'[{status:10}] {name:17} ({source}) ' + ', '.join(
+            print(f'[{status:10}] {name:21} ({source}) ' + ', '.join(
                 f'{k}=0x{v:X}' + ('' if KNOWN_161.get(k, v) == v else f' (1.61: 0x{KNOWN_161[k]:X})')
                 for k, v in values.items()))
             for p in problems:
                 print(f'             ! {p}')
             if problems:
-                broken.append(name)
+                broken.append(base)
             else:
-                new_known[name] = values
+                new_known[base] = values
             continue
 
         why = 'no longer matches' if not hits else 'matches more than once'
-        print(f'[BROKEN    ] {name:17} ({source}) {why} - searching for the new location...')
-        results = fuzzy_find(exe, name, pat, known.get(name, {}))
+        print(f'[BROKEN    ] {name:21} ({source}) {why} - searching for the new location...')
+        results = fuzzy_find(exe, name, pat, known.get(base, {}))
         good = [r for r in results if not r[3]]
         chosen = None
         if good and good[0][0] >= 0.75:
@@ -426,7 +454,7 @@ def check_game(args, here, game, exe_path):
                   f'(1.00 = identical bytes, +0.10 when the offsets are unchanged), '
                   f'{len(ties)} candidate(s) within 5%' + (' (all give the same values)' if len(ties) > 1 and same else ''))
             # several equally good candidates are only acceptable for data-only signatures
-            if len(ties) == 1 or (same and name in SAME_VALUES_OK):
+            if len(ties) == 1 or (same and base_name(name) in SAME_VALUES_OK):
                 chosen = best
         elif results:
             print(f'             best candidate only scores {results[0][0]:.2f} - too different to trust')
@@ -436,10 +464,10 @@ def check_game(args, here, game, exe_path):
                 print('             values: ' + ', '.join(f'{k}=0x{v:X}' for k, v in chosen[2].items()))
             print(f'             repaired signature: {fmt(new)}')
             repairs[name] = fmt(new)
-            new_known[name] = dict(chosen[2])
+            new_known[base] = dict(chosen[2])
             continue
         print('             could not repair automatically')
-        broken.append(name)
+        broken.append(base)
 
     # cross-signature consistency
     sk = new_known.get('StartActivation', {}).get('slot_type')

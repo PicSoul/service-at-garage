@@ -240,22 +240,36 @@ static void LogNearbyTriggers() {
 // ---------------------------------------------------------------- gameplay mode / vehicle mode
 
 
+// Gameplay mode vtable slot of start_activation: 0x190 in 1.61, 0x198 in ATS 1.62 (a virtual was added before 0xe0).
+// Found at runtime; the vehicle mode getter sits 0xb0 below it in both versions.
+static size_t g_startSlot;
+const size_t kVehicleModeBelowStart = 0xb0;
+
 // The local gameplay mode (owner of the activation slot) at core+0x2b30, as the game's own
-// is_activation_enabled reads it. Null unless its vtable holds the start_activation we hook (+0x190).
+// is_activation_enabled reads it. Null unless its vtable holds the start_activation we hook.
 void* GameplayMode(void* core) {
     void* gm = nullptr;
     uintptr_t* vt = nullptr;
-    uintptr_t start = 0;
-    if (!Read(core, 0x2b30, gm) || !gm || !Read(gm, 0, vt) || !vt || !Read(vt, 0x190, start)) return nullptr;
-    return start == g_game.startActivation ? gm : nullptr;
+    if (!Read(core, 0x2b30, gm) || !gm || !Read(gm, 0, vt) || !vt) return nullptr;
+    uintptr_t fn = 0;
+    if (g_startSlot && Read(vt, g_startSlot, fn) && fn == g_game.startActivation) return gm;
+    for (size_t slot = 0x150; slot <= 0x260; slot += 8) {
+        if (Read(vt, slot, fn) && fn == g_game.startActivation) {
+            if (g_startSlot != slot) Log("gameplay mode: start_activation at vtable +0x%llX", (unsigned long long)slot);
+            g_startSlot = slot;
+            return gm;
+        }
+    }
+    return nullptr;
 }
 
-// Vehicle mode (gameplay mode virtual +0xe0): 0 = truck, 2 = car (ATS Road Trip). -1 = unknown. POD only (__try).
+// Vehicle mode (gameplay mode virtual, 0xe0 in 1.61 / 0xe8 in 1.62): 0 = truck, 2 = car (ATS Road Trip).
+// -1 = unknown. POD only (__try).
 static int VehicleMode(void* gm) {
-    if (!gm) return -1;
+    if (!gm || g_startSlot < kVehicleModeBelowStart) return -1;
     __try {
         typedef int(__fastcall * Fn)(void*);
-        return ((Fn)(*(void***)gm)[0xe0 / 8])(gm);
+        return ((Fn)(*(void***)gm)[(g_startSlot - kVehicleModeBelowStart) / 8])(gm);
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return -1;
     }

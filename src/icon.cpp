@@ -11,10 +11,17 @@ namespace sag {
 
 void(__fastcall* OrigGarageItemDraw)(void* item, void* ctx);
 
+// 1.61: {model instance, params}. 1.62 added a reference-counted object at +0x10 (released by the game's release
+// function) and a scale (float3) at +0x18 that place() writes and draw() reads: 0x28 bytes. The larger, zeroed
+// layout works for both.
 struct Marker {
     void* inst;
     void* params;
+    void* extra;      // 1.62
+    float scale[3];   // 1.62
+    float pad;
 };
+static_assert(sizeof(Marker) == 0x28, "marker layout");
 // Same layout the game builds from a map node: local position, 512 m sector, rotation.
 struct Placement {
     float x, y, z;
@@ -22,7 +29,10 @@ struct Placement {
     float rot[4];
 };
 typedef void(__fastcall* MarkerCreate_t)(Marker* m, const void* modelPathRef, const void* animPathRef);
-typedef void(__fastcall* MarkerPlace_t)(Marker* m, const Placement* p);
+// 1.62 takes two more arguments - the game passes (1,1,1,1) and a unit scale; 1.61 never reads r8/r9, so passing
+// them is harmless there.
+typedef void(__fastcall* MarkerPlace_t)(Marker* m, const Placement* p, const float* tint4, const float* scale3);
+static const float kOnes[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 typedef void(__fastcall* MarkerDraw_t)(Marker* m, void* renderCtx);
 typedef void(__fastcall* MarkerRelease_t)(Marker* m);
 
@@ -110,8 +120,8 @@ void IconSelectTarget() {
 // them froze the game on exit), so it runs on pause and whenever no icon is needed.
 static void ReleaseMarker(const char* why) {
     if (!g_markerCreated) return;
-    if (g_marker.inst || g_marker.params) ((MarkerRelease_t)g_game.markerRelease)(&g_marker);
-    g_marker.inst = g_marker.params = nullptr;
+    if (g_marker.inst || g_marker.params || g_marker.extra) ((MarkerRelease_t)g_game.markerRelease)(&g_marker);
+    g_marker = Marker{};
     g_markerCreated = false;
     Log("service icon released (%s)", why);
 }
@@ -128,7 +138,7 @@ void IconUpdate() {
         ((MarkerCreate_t)g_game.markerCreate)(&g_marker, (void*)g_game.serviceIconModel, (void*)g_game.serviceIconAnim);
         Log("service icon created (inst %p)", g_marker.inst);
     }
-    if (g_marker.inst) ((MarkerPlace_t)g_game.markerPlace)(&g_marker, &g_iconPlacement);
+    if (g_marker.inst) ((MarkerPlace_t)g_game.markerPlace)(&g_marker, &g_iconPlacement, kOnes, kOnes);
 }
 
 void IconLogGeometry(void* garageItem, const char* why) {

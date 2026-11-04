@@ -39,6 +39,17 @@ static const Signature kSignatures[] = {
      "B6 40 48 F6 D0 A8 01 74 ? 49 8B 40 48", false},
     {"SAGSIG:TriggerInside=40 55 56 57 48 8D 6C 24 B9 48 81 EC B0 00 00 00 8B 79 ? 48 8B F1 0F BA E7 10 73 ? 80 "
      "79 ? 03", false},
+    // ATS 1.62 variants of the ones whose code changed (re/make_sigs.py on build 6AE990FB). "Name.162" is another
+    // way to find "Name": whichever variant matches is used, so one DLL supports both game versions.
+    {"SAGSIG:GarageItemUpdate.162=40 55 41 56 48 8D 6C 24 B1 48 81 EC B8 00 00 00 4C 8B 41 ?", false},
+    {"SAGSIG:GarageItemLayout.162=49 8D 8E ? ? ? ? 0F 5B C0 F3 0F 59 C6 F3 0F 11 45 DF 41 0F 10 40 10 4C 8D 45 C7 "
+     "0F 11 45 E7 E8 ? ? ? ? 49 8B 86 ? ? ? ?", false},
+    {"SAGSIG:GarageStatus.162=8B 81 ? ? ? ? 4C 8B EA 44 8B C0", false},
+    {"SAGSIG:MarkerCreate.162=48 89 5C 24 10 55 56 57 41 56 41 57 48 83 EC 40 4D 8B F8", false},
+    {"SAGSIG:MarkerPlace.162=48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 48 83 EC 50 48 8B 01 49 8B E9 49 8B "
+     "F0 48 8B FA 48 8B D9 44 8B 90 ? ? ? ?", false},
+    {"SAGSIG:MarkerDraw.162=48 89 5C 24 08 57 48 83 EC 50 48 8B 01 48 8B FA 48 8B D9 44 8B 80 3C 01 00 00", false},
+    {"SAGSIG:MarkerRelease.162=48 89 5C 24 08 57 48 83 EC 30 48 8B D9 E8 ? ? ? ? 48 8B 4B 08", false},
 };
 
 // Operands read from a match: byte position and size inside the signature. Must match
@@ -57,6 +68,9 @@ static const Operand kOperands[] = {
     {"TriggerUpdate", "trigger_list_tail", 66, 1}, {"IconTables", "icon_anim_table", 3, 4},
     {"IconTables", "icon_model_table", 27, 4},   {"MarkerPlace", "marker_flags", 34, 4},
     {"TriggerInside", "trigger_flags", 18, 1},
+    {"GarageItemUpdate.162", "item_node", 19, 1},  {"GarageItemLayout.162", "item_marker", 3, 4},
+    {"GarageItemLayout.162", "item_garage", 40, 4}, {"GarageStatus.162", "garage_status", 2, 4},
+    {"MarkerPlace.162", "marker_flags", 38, 4},
 };
 
 static const int kMaxSig = sizeof(kSignatures) / sizeof(kSignatures[0]);
@@ -139,19 +153,25 @@ static bool SameOperands(const std::string& name, const uintptr_t* hits, int n) 
     return true;
 }
 
+// "Name" of a signature without its variant suffix ("MarkerPlace.162" -> "MarkerPlace").
+static std::string BaseName(const std::string& name) { return name.substr(0, name.find('.')); }
+
+// The match of whichever variant of `name` was found (0 = none).
 static uintptr_t Match(const char* name) {
     for (const Resolved& r : g_resolved)
-        if (r.name == name) return r.address;
+        if (BaseName(r.name) == name && r.address) return r.address;
     return 0;
 }
 
 static bool Op(const char* name, uint32_t& out) {
     for (const Operand& o : kOperands) {
         if (strcmp(o.name, name) != 0) continue;
-        uintptr_t m = Match(o.sig);
-        if (!m) return false;
-        out = OperandAt(m, o.pos, o.size);
-        return true;
+        // the operand row of the variant that matched (each variant has its own positions)
+        for (const Resolved& r : g_resolved) {
+            if (r.name != o.sig || !r.address) continue;
+            out = OperandAt(r.address, o.pos, o.size);
+            return true;
+        }
     }
     return false;
 }
@@ -211,14 +231,24 @@ void ResolveSignatures(const std::string& iniPath, const std::string& buildId, s
         bool ok = n == 1 || (n > 1 && kSignatures[i].sameValues && SameOperands(r.name, hits, n));
         if (ok) {
             r.address = hits[0];
-            found++;
-            Log("signature %-18s %s at exe+0x%llX%s", r.name.c_str(), r.fromIni ? "(ini)" : "", (unsigned long long)(hits[0] - g_base),
+            Log("signature %-22s %s at exe+0x%llX%s", r.name.c_str(), r.fromIni ? "(ini)" : "", (unsigned long long)(hits[0] - g_base),
                 n > 1 ? " (identical copies)" : "");
         } else {
-            Log("signature %-18s %s %s", r.name.c_str(), r.fromIni ? "(ini)" : "",
-                n < 0 ? "is malformed" : n == 0 ? "NOT FOUND" : "matched more than once - refusing to guess");
-            missing += " " + r.name;
+            Log("signature %-22s %s %s", r.name.c_str(), r.fromIni ? "(ini)" : "",
+                n < 0 ? "is malformed" : n == 0 ? "not found" : "matched more than once - refusing to guess");
         }
+    }
+    // a signature is missing only if none of its variants matched
+    int bases = 0;
+    for (int i = 0; i < kMaxSig; i++) {
+        std::string base = BaseName(g_resolved[i].name);
+        bool first = true;
+        for (int k = 0; k < i; k++)
+            if (BaseName(g_resolved[k].name) == base) first = false;
+        if (!first) continue;
+        bases++;
+        if (Match(base.c_str())) found++;
+        else missing += " " + base;
     }
     if (iniBuild[0] && !useIni)
         Log("ignoring [Signatures] in the ini: made for game build %s, running %s", iniBuild, buildId.c_str());
@@ -270,7 +300,7 @@ void ResolveSignatures(const std::string& iniPath, const std::string& buildId, s
         g.slotType, g.slotItem, g.itemNode, g.itemGarage, g.garageStatus, g.triggerManager);
 
     char buf[256];
-    snprintf(buf, sizeof(buf), "%d/%d signatures matched%s", found, kMaxSig,
+    snprintf(buf, sizeof(buf), "%d/%d signatures matched%s", found, bases,
              overrides ? (useIni ? " (using ini repairs)" : "") : "");
     summary = buf;
     if (!missing.empty()) summary += ", missing:" + missing;
